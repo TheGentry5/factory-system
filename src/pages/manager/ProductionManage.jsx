@@ -1,21 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Card, Table, Tag, Button, Space, Tabs, message, Modal, Select, Input, InputNumber,
+import { useParams } from 'react-router-dom';
+import { Card, Table, Tag, Button, Space, message, Modal, Select, Input, InputNumber,
          Row, Col, Statistic, Empty, Form, DatePicker, Popconfirm } from 'antd';
 import {
-  DashboardOutlined, OrderedListOutlined, CheckCircleOutlined,
-  BarChartOutlined, ExperimentOutlined, PlusOutlined, ReloadOutlined,
+  OrderedListOutlined, CheckCircleOutlined,
+  ExperimentOutlined, PlusOutlined, ReloadOutlined,
   DeleteOutlined, PlayCircleOutlined, EyeOutlined, CloseCircleOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
-const api = {
-  get: (url, params) => fetch(`/api${url}?` + new URLSearchParams(
-    Object.entries(params || {}).filter(([, v]) => v !== '' && v !== undefined && v !== null)
-  )).then(r => r.json()),
-  post: (url, data) => fetch(`/api${url}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(r => r.json()),
-  put: (url, data) => fetch(`/api${url}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(r => r.json()),
-  del: (url) => fetch(`/api${url}`, { method: 'DELETE' }).then(r => r.json()),
-};
+import api from '../../utils/api';
 
 // 规格单位选项
 const SPEC_UNITS = [
@@ -49,27 +43,27 @@ function fmtDate(v) {
   return v && typeof v === 'object' && v.format ? v.format('YYYY-MM-DD') : v;
 }
 
+// 展示用：后端 DATE 字段经 JSON 序列化为 UTC ISO，转回 'YYYY-MM-DD'
+function fmtDateDisplay(v) {
+  if (!v) return '-';
+  const d = dayjs(v);
+  return d.isValid() ? d.format('YYYY-MM-DD') : v;
+}
+
 // ==================== 生产管理主页 ====================
+// 子模块由路由参数决定，顶部子导航由 BaseLayout 按菜单分组渲染
+const PRODUCTION_PANELS = {
+  overview: OverviewPanel,
+  orders: OrdersPanel,
+  review: ReviewPanel,
+  daily: DailyPanel,
+  bom: BOMPanel,
+};
+
 export default function ProductionManage() {
-  const [activeTab, setActiveTab] = useState('overview');
-
-  return (
-    <div>
-      <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
-        { key: 'overview', label: '📊 生产总览', icon: <DashboardOutlined /> },
-        { key: 'orders', label: '📋 工单管理', icon: <OrderedListOutlined /> },
-        { key: 'review', label: '✅ 报工审核', icon: <CheckCircleOutlined /> },
-        { key: 'daily', label: '📈 生产日报', icon: <BarChartOutlined /> },
-        { key: 'bom', label: '🧩 BOM管理', icon: <ExperimentOutlined /> },
-      ]} />
-
-      {activeTab === 'overview' && <OverviewPanel />}
-      {activeTab === 'orders' && <OrdersPanel />}
-      {activeTab === 'review' && <ReviewPanel />}
-      {activeTab === 'daily' && <DailyPanel />}
-      {activeTab === 'bom' && <BOMPanel />}
-    </div>
-  );
+  const { tab } = useParams();
+  const Panel = PRODUCTION_PANELS[tab] || OverviewPanel;
+  return <Panel />;
 }
 
 // ==================== 1. 生产总览 ====================
@@ -213,10 +207,10 @@ function OrdersPanel() {
           { title: '状态', dataIndex: 'status', width: 80, render: v => <Tag color={statusMap[v]?.color}>{statusMap[v]?.label}</Tag> },
           { title: '负责人', dataIndex: 'assigned_to', width: 80 },
           { title: '业务组', dataIndex: 'group_id', width: 100, render: v => v ? <Tag>{v}</Tag> : '-' },
-          { title: '计划开始', dataIndex: 'planned_start', width: 100 },
-          { title: '计划结束', dataIndex: 'planned_end', width: 100 },
+          { title: '计划开始', dataIndex: 'planned_start', width: 100, render: fmtDateDisplay },
+          { title: '计划结束', dataIndex: 'planned_end', width: 100, render: fmtDateDisplay },
           { title: '交期', dataIndex: 'delivery_date', width: 100,
-            render: v => v ? <span style={{ color: '#ff4d4f', fontWeight: 600 }}>{v}</span> : '-' },
+            render: v => v ? <span style={{ color: '#ff4d4f', fontWeight: 600 }}>{fmtDateDisplay(v)}</span> : '-' },
           {
             title: '操作', width: 220,
             render: (_, r) => (
@@ -397,7 +391,7 @@ function ReviewPanel() {
       </Space>
       <Table rowKey="id" size="small" dataSource={data} loading={loading} pagination={{ pageSize: 20 }}
         columns={[
-          { title: '日期', dataIndex: 'report_date', width: 100 },
+          { title: '日期', dataIndex: 'report_date', width: 100, render: fmtDateDisplay },
           { title: '工单号', dataIndex: 'order_no', width: 130 },
           { title: '产品', dataIndex: 'product_name', width: 100 },
           { title: '报工人', dataIndex: 'employee_name', width: 80 },

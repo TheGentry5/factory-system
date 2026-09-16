@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Layout, Menu, Button, Typography, Dropdown, theme, Tag } from 'antd';
 import * as Icons from '@ant-design/icons';
@@ -39,19 +39,50 @@ export default function BaseLayout({ role }) {
     return Icon ? <Icon /> : null;
   };
 
-  // 过滤掉功能开关关闭的菜单项。
+  // 子菜单展开项（受控）：悬停分组时在左侧导航栏内展开，移出即收起。
+  // 折叠态下的浮层交由 antd 管理，因此切换折叠时重置，避免浮层默认驻留。
+  const [openKeys, setOpenKeys] = useState([]);
+  useEffect(() => {
+    setOpenKeys([]);
+  }, [collapsed]);
+
+  // 过滤掉功能开关关闭的菜单项，并递归构建（含子菜单分组）。
   // 菜单项语义：feature = 功能开关 key（isFeatureOn 用）；permKey = 权限标识（PermissionGuard 用）。
-  // 注意：原实现误用 item.permKey 判断导致员工菜单被整体隐藏（permKey 是 snake_case，features 是 camelCase）。
-  const visibleMenu = menuItems
-    .filter((item) => {
-      if (item.feature && !isFeatureOn(item.feature)) return false; // 功能关闭
-      return true;
-    })
-    .map((item) => ({
-      key: item.key,
-      icon: resolveIcon(item.icon),
-      label: item.label,
-    }));
+  // feature 在父、子两层都过滤；子项全被过滤时整组隐藏，避免出现空分组。
+  const visibleMenu = useMemo(() => {
+    const build = (items) =>
+      items
+        .filter((item) => !item.feature || isFeatureOn(item.feature))
+        .map((item) => {
+          if (item.children?.length) {
+            const children = build(item.children);
+            if (!children.length) return null; // 子项全关 → 整组隐藏
+            const group = {
+              key: item.key,
+              icon: resolveIcon(item.icon),
+              label: item.label,
+              children,
+            };
+            // 仅在展开态用悬停控制内联子菜单（折叠态由 antd 的弹出层处理）
+            if (!collapsed) {
+              group.onMouseEnter = () =>
+                setOpenKeys((prev) => (prev.includes(item.key) ? prev : [...prev, item.key]));
+              group.onMouseLeave = () =>
+                setOpenKeys((prev) => prev.filter((k) => k !== item.key));
+            }
+            return group;
+          }
+          return { key: item.key, icon: resolveIcon(item.icon), label: item.label };
+        })
+        .filter(Boolean);
+    return build(menuItems);
+  }, [menuItems, isFeatureOn, collapsed]);
+
+  // 当前所在的分组（用于内容区顶部子模块导航条）
+  const activeGroup = visibleMenu.find(
+    (item) =>
+      item.children?.length && item.children.some((child) => child.key === location.pathname)
+  );
 
   const handleLogout = () => {
     logout();
@@ -111,6 +142,8 @@ export default function BaseLayout({ role }) {
           mode="inline"
           selectedKeys={[location.pathname]}
           defaultSelectedKeys={[menuItems[0]?.key]}
+          openKeys={openKeys}
+          onOpenChange={setOpenKeys}
           onClick={({ key }) => navigate(key)}
           items={visibleMenu}
           style={{ borderInlineEnd: 'none', marginTop: 8 }}
@@ -170,6 +203,16 @@ export default function BaseLayout({ role }) {
             overflow: 'auto',
           }}
         >
+          {/* 分组子模块导航条：进入分组后统一显示全部子模块，点击可切换 */}
+          {activeGroup && (
+            <Menu
+              mode="horizontal"
+              selectedKeys={[location.pathname]}
+              items={activeGroup.children}
+              onClick={({ key }) => navigate(key)}
+              style={{ marginBottom: 16, borderBottom: '1px solid #f0f0f0' }}
+            />
+          )}
           <Outlet />
         </Content>
       </Layout>

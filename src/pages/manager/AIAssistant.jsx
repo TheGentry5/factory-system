@@ -31,14 +31,7 @@ class ErrorBoundary extends Component {
 }
 
 // ==================== API ====================
-const api = {
-  post: (url, data) => fetch(`/api${url}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  }).then(r => { if (!r.ok) throw new Error('网络错误'); return r.json(); }),
-  get: (url) => fetch(`/api${url}`).then(r => { if (!r.ok) throw new Error('网络错误'); return r.json(); }),
-};
+import api from '../../utils/api';
 
 const QUICK_QUESTIONS = [
   '出墨不匀怎么排查', '套印不准怎么办', '墨杠水杠怎么区分',

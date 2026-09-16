@@ -1,49 +1,33 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Card, Table, Tag, Button, Space, Tabs, message, Modal, Select, Input, InputNumber, Descriptions,
+import { useParams } from 'react-router-dom';
+import { Card, Table, Tag, Button, Space, message, Modal, Select, Input, InputNumber, Descriptions,
          Row, Col, Badge, Tooltip, Statistic, Empty, Alert, Form, Popconfirm, DatePicker } from 'antd';
 import dayjs from 'dayjs';
 import {
   EnvironmentOutlined, InboxOutlined, SearchOutlined, ReloadOutlined,
   ArrowUpOutlined, ArrowDownOutlined, SwapOutlined, HistoryOutlined,
-  CheckCircleOutlined, HomeOutlined, EditOutlined, DashboardOutlined,
-  WarningOutlined, SendOutlined, PlusOutlined, DeleteOutlined,
-  AimOutlined,
+  CheckCircleOutlined, HomeOutlined, EditOutlined,
+  WarningOutlined, PlusOutlined, DeleteOutlined,
 } from '@ant-design/icons';
 
-const api = {
-  get: (url, params) => fetch(`/api${url}?` + new URLSearchParams(
-    Object.entries(params || {}).filter(([, v]) => v !== '' && v !== undefined && v !== null)
-  )).then(r => r.json()),
-  post: (url, data) => fetch(`/api${url}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(r => r.json()),
-  put: (url, data) => fetch(`/api${url}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(r => r.json()),
-  del: (url) => fetch(`/api${url}`, { method: 'DELETE' }).then(r => r.json()),
-};
+import api from '../../utils/api';
 
 // ==================== 库存管理主页 ====================
+// 子模块由路由参数决定，顶部子导航由 BaseLayout 按菜单分组渲染
+const INVENTORY_PANELS = {
+  overview: OverviewPanel,
+  map: WarehouseMapPanel,
+  inbound: InboundPanel,
+  outbound: OutboundPanel,
+  transfer: TransferPanel,
+  check: CheckPanel,
+  'ai-query': AIAndLogsPanel,
+};
+
 export default function InventoryManage() {
-  const [activeTab, setActiveTab] = useState('overview');
-
-  return (
-    <div>
-      <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
-        { key: 'overview', label: '📊 库存总览', icon: <DashboardOutlined /> },
-        { key: 'map', label: '🗺️ 仓库地图', icon: <EnvironmentOutlined /> },
-        { key: 'inbound', label: '📥 入库操作', icon: <ArrowDownOutlined /> },
-        { key: 'outbound', label: '📤 出库操作', icon: <ArrowUpOutlined /> },
-        { key: 'transfer', label: '🔄 调拨管理', icon: <SwapOutlined /> },
-        { key: 'check', label: '📋 盘点管理', icon: <CheckCircleOutlined /> },
-        { key: 'ai_query', label: '🤖 AI查询 & 日志', icon: <SearchOutlined /> },
-      ]} />
-
-      {activeTab === 'overview' && <OverviewPanel />}
-      {activeTab === 'map' && <WarehouseMapPanel />}
-      {activeTab === 'inbound' && <InboundPanel />}
-      {activeTab === 'outbound' && <OutboundPanel />}
-      {activeTab === 'transfer' && <TransferPanel />}
-      {activeTab === 'check' && <CheckPanel />}
-      {activeTab === 'ai_query' && <AIAndLogsPanel />}
-    </div>
-  );
+  const { tab } = useParams();
+  const Panel = INVENTORY_PANELS[tab] || OverviewPanel;
+  return <Panel />;
 }
 
 // ==================== 1. 库存总览面板 ====================

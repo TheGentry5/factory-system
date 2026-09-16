@@ -20,6 +20,9 @@ server\db.cjs
 
 AGENTS.md
 
+#需求文档
+docs/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

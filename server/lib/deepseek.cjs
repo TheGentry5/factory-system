@@ -7,11 +7,11 @@
  * 使用 Node.js 内置 fetch（Node 18+），零外部依赖
  */
 
-const DEEPSEEK_BASE_URL = 'https://api.siliconflow.cn/v1/chat/completions';
+const DEEPSEEK_BASE_URL = 'https://api.siliconflow.cn/v1';
 const DEFAULT_MODEL = 'deepseek-ai/DeepSeek-V4-Flash';
 const DEFAULT_TEMPERATURE = 0.3;
 const DEFAULT_MAX_TOKENS = 4096;
-const DEFAULT_TIMEOUT_MS = 30000;
+const DEFAULT_TIMEOUT_MS = 60000;
 
 /**
  * 获取 API Key（优先级：环境变量 > config.json）
@@ -40,7 +40,8 @@ function getApiKey() {
  * @param {string} [options.model] - 模型名称，默认 deepseek-chat
  * @param {number} [options.temperature] - 温度，默认 0.3
  * @param {number} [options.maxTokens] - 最大输出 token，默认 4096
- * @param {number} [options.timeout] - 超时毫秒，默认 30000
+ * @param {number} [options.timeout] - 超时毫秒，默认 60000
+ * @param {boolean} [options.enableThinking] - 是否开启思考链（默认 false，关闭可大幅提速且让 max_tokens 生效）
  * @returns {Promise<{success: boolean, content?: string, error?: string}>}
  */
 async function chat(messages, options = {}) {
@@ -58,6 +59,7 @@ async function chat(messages, options = {}) {
     temperature = DEFAULT_TEMPERATURE,
     maxTokens = DEFAULT_MAX_TOKENS,
     timeout = DEFAULT_TIMEOUT_MS,
+    enableThinking = false,
   } = options;
 
   const controller = new AbortController();
@@ -75,6 +77,7 @@ async function chat(messages, options = {}) {
         messages,
         temperature,
         max_tokens: maxTokens,
+        enable_thinking: enableThinking,
       }),
       signal: controller.signal,
     });
@@ -150,6 +153,7 @@ async function* chatStream(messages, options = {}) {
     temperature = DEFAULT_TEMPERATURE,
     maxTokens = DEFAULT_MAX_TOKENS,
     timeout = DEFAULT_TIMEOUT_MS,
+    enableThinking = false,
   } = options;
 
   const controller = new AbortController();
@@ -168,6 +172,7 @@ async function* chatStream(messages, options = {}) {
         temperature,
         max_tokens: maxTokens,
         stream: true,
+        enable_thinking: enableThinking,
       }),
       signal: controller.signal,
     });

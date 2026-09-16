@@ -1,50 +1,34 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
 import {
   Card, Table, Button, Input, Select, Tag, Space, Modal, Form, message,
-  Tabs, Descriptions, Badge, Tooltip, Popconfirm, Row, Col, Statistic, Alert,
+  Descriptions, Badge, Tooltip, Popconfirm, Row, Col, Statistic, Alert,
 } from 'antd';
 import {
-  PlusOutlined, SearchOutlined, ReloadOutlined, EyeOutlined,
+  PlusOutlined, ReloadOutlined, EyeOutlined,
   EditOutlined, DeleteOutlined, SafetyCertificateOutlined,
-  ExclamationCircleOutlined, CheckCircleOutlined, ClockCircleOutlined,
-  InboxOutlined, TeamOutlined, ExperimentOutlined, EnvironmentOutlined,
+  ExclamationCircleOutlined, CheckCircleOutlined,
+  InboxOutlined, ExperimentOutlined, EnvironmentOutlined,
 } from '@ant-design/icons';
 
 // ==================== API 工具 ====================
-const api = {
-  get: (url, params) =>
-    fetch(`/api${url}?` + new URLSearchParams(
-      Object.entries(params || {}).filter(([, v]) => v !== '' && v !== undefined && v !== null)
-    )).then(r => r.json()),
-  post: (url, data) =>
-    fetch(`/api${url}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(r => r.json()),
-  put: (url, data) =>
-    fetch(`/api${url}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(r => r.json()),
-  del: (url) =>
-    fetch(`/api${url}`, { method: 'DELETE' }).then(r => r.json()),
-};
+import api from '../../utils/api';
 
 // ==================== 常量 ====================
 const STOCK_WARN_THRESHOLD = 1.3; // 库存低于安全库存的130%时预警
 
 // ==================== 组件 ====================
+// 子模块由路由参数决定，顶部子导航由 BaseLayout 按菜单分组渲染
+const MATERIAL_PANELS = {
+  materials: MaterialList,
+  suppliers: SupplierList,
+  inbound: InboundApproval,
+};
+
 export default function MaterialManage() {
-  const [activeTab, setActiveTab] = useState('materials');
-
-  const tabItems = [
-    { key: 'materials', label: '物料主数据', icon: <InboxOutlined /> },
-    { key: 'suppliers', label: '供应商管理', icon: <TeamOutlined /> },
-    { key: 'inbound', label: '入库审核', icon: <SafetyCertificateOutlined /> },
-  ];
-
-  return (
-    <div>
-      <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabItems} />
-      {activeTab === 'materials' && <MaterialList />}
-      {activeTab === 'suppliers' && <SupplierList />}
-      {activeTab === 'inbound' && <InboundApproval />}
-    </div>
-  );
+  const { tab } = useParams();
+  const Panel = MATERIAL_PANELS[tab] || MaterialList;
+  return <Panel />;
 }
 
 // ==================== 1. 物料主数据 ====================

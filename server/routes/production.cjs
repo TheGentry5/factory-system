@@ -252,6 +252,21 @@ router.delete('/orders/:id', async (req, res) => {
 
 // ==================== 生产报工 ====================
 
+// GET 机台列表（报工机台下拉用）
+router.get('/machines', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT id, machine_name, machine_type, owner_group_id, hourly_cost, daily_available_hours
+       FROM production_machines
+       WHERE status = 1
+       ORDER BY id`
+    );
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // GET 报工列表
 router.get('/reports', async (req, res) => {
   try {

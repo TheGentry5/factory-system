@@ -4,11 +4,7 @@ import { BarChartOutlined, InboxOutlined, UserOutlined, ReloadOutlined } from '@
 import PermissionGuard from '../../components/PermissionGuard';
 import dayjs from 'dayjs';
 
-const api = {
-  get: (url, params) => fetch(`/api${url}?` + new URLSearchParams(
-    Object.entries(params || {}).filter(([, v]) => v !== '' && v !== undefined && v !== null)
-  )).then(r => r.json()),
-};
+import api from '../../utils/api';
 
 export default function ViewReports() {
   const [activeTab, setActiveTab] = useState('production');
@@ -135,7 +131,7 @@ function PersonalStats() {
           </Row>
           <Table rowKey="id" size="small" dataSource={thisMonth.slice(0, 30)} pagination={{ pageSize: 15 }}
             columns={[
-              { title: '日期', dataIndex: 'report_date', width: 100 },
+              { title: '日期', dataIndex: 'report_date', width: 100, render: v => v ? dayjs(v).format('YYYY-MM-DD') : '-' },
               { title: '工单', dataIndex: 'order_no', width: 130 },
               { title: '产品', dataIndex: 'product_name', width: 100 },
               { title: '良品', dataIndex: 'output_quantity', width: 70, align: 'right', render: v => <span style={{ color: '#52c41a' }}>{v}</span> },

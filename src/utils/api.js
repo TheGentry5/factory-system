@@ -8,43 +8,50 @@
  *   import api from '../utils/api';
  *   api.get('/materials', { page: 1 })
  *   api.post('/purchase-orders', { material_id: 1, quantity: 100 })
+ *   api.get('/scheduling/schedule-suggestion', undefined, { groupCode: '__all__' })  // 跨组视图
  */
 
 const BASE = '';
 
-function headers() {
+function headers(options) {
   const h = { 'Content-Type': 'application/json' };
+  // 允许调用方覆盖业务组头：传 groupCode（如排产跨组视图 '__all__'）则用该值；
+  // 显式传 null 表示不带 header（等价于旧版不过滤）。
+  if (options && Object.prototype.hasOwnProperty.call(options, 'groupCode')) {
+    if (options.groupCode) h['X-Group-Code'] = options.groupCode;
+    return h;
+  }
   const groupCode = sessionStorage.getItem('currentGroup');
   if (groupCode) h['X-Group-Code'] = groupCode;
   return h;
 }
 
-async function get(url, params) {
+async function get(url, params, options) {
   const qs = params ? '?' + new URLSearchParams(params).toString() : '';
-  const res = await fetch(`${BASE}/api${url}${qs}`, { headers: headers() });
+  const res = await fetch(`${BASE}/api${url}${qs}`, { headers: headers(options) });
   return res.json();
 }
 
-async function post(url, data) {
+async function post(url, data, options) {
   const res = await fetch(`${BASE}/api${url}`, {
     method: 'POST',
-    headers: headers(),
+    headers: headers(options),
     body: JSON.stringify(data),
   });
   return res.json();
 }
 
-async function put(url, data) {
+async function put(url, data, options) {
   const res = await fetch(`${BASE}/api${url}`, {
     method: 'PUT',
-    headers: headers(),
+    headers: headers(options),
     body: JSON.stringify(data),
   });
   return res.json();
 }
 
-async function del(url) {
-  const res = await fetch(`${BASE}/api${url}`, { method: 'DELETE', headers: headers() });
+async function del(url, options) {
+  const res = await fetch(`${BASE}/api${url}`, { method: 'DELETE', headers: headers(options) });
   return res.json();
 }
 

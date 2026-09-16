@@ -11,18 +11,7 @@ import {
 import dayjs from 'dayjs';
 
 // ==================== API 工具 ====================
-const api = {
-  get: (url, params) =>
-    fetch(`/api${url}?` + new URLSearchParams(
-      Object.entries(params || {}).filter(([, v]) => v !== '' && v !== undefined && v !== null)
-    )).then(r => r.json()),
-  post: (url, data) =>
-    fetch(`/api${url}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(r => r.json()),
-  put: (url, data) =>
-    fetch(`/api${url}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(r => r.json()),
-  del: (url) =>
-    fetch(`/api${url}`, { method: 'DELETE' }).then(r => r.json()),
-};
+import api from '../../utils/api';
 
 // 部门选项（从种子数据中提取）
 const DEPARTMENTS = ['采购部', '生产部', '质检部', '仓储部', '设备部', '财务部', '行政部'];

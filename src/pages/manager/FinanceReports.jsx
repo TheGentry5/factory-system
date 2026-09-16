@@ -24,6 +24,10 @@ function useFetch(fn, deps) {
   return { data, loading };
 }
 
+// 月份中文名（antd 月选择面板取 locale.lang.shortMonths，默认 zh_CN 未内置，回退到 dayjs 会显示英文）
+const MONTHS_CN = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
+const MONTH_PICKER_LOCALE = { lang: { shortMonths: MONTHS_CN } };
+
 const TYPE_TAG = { asset: 'green', liability: 'orange', equity: 'blue', revenue: 'purple', expense: 'red', cost: 'volcano' };
 const typeName = { asset: '资产', liability: '负债', equity: '权益', revenue: '收入', expense: '费用', cost: '成本' };
 
@@ -232,7 +236,7 @@ export default function FinanceReports() {
   return (
     <Card title={<><AccountBookOutlined /> 财务报表</>}
       extra={
-        <DatePicker picker="month" value={dayjs(period)} onChange={(d) => d && setPeriod(d.format('YYYY-MM'))} allowClear={false} />
+        <DatePicker picker="month" value={dayjs(period)} onChange={(d) => d && setPeriod(d.format('YYYY-MM'))} allowClear={false} locale={MONTH_PICKER_LOCALE} />
       }>
       <Title level={5} style={{ marginTop: 0 }}>会计期间：{period}（报表口径：已过账凭证）</Title>
       <Tabs activeKey={tab} onChange={setTab} items={tabs} />

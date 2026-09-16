@@ -40,15 +40,7 @@ function utilColor(v) {
   return '#1890ff';
 }
 
-const api = {
-  get: (url, params) => {
-    const qs = new URLSearchParams(
-      Object.entries(params || {}).filter(([, v]) => v !== '' && v != null)
-    ).toString();
-    return fetch(`/api${url}${qs ? '?' + qs : ''}`)
-      .then(r => { if (!r.ok) throw new Error('网络错误'); return r.json(); });
-  },
-};
+import api from '../../utils/api';
 
 // ==================== 页面 ====================
 export default function WeeklyReport() {

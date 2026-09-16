@@ -10,16 +10,7 @@ import {
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
-const api = {
-  get: (url, params) =>
-    fetch(`/api${url}?` + new URLSearchParams(
-      Object.entries(params || {}).filter(([, v]) => v !== '' && v !== undefined && v !== null)
-    )).then(r => r.json()),
-  post: (url, data) =>
-    fetch(`/api${url}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(r => r.json()),
-  put: (url, data) =>
-    fetch(`/api${url}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(r => r.json()),
-};
+import api from '../../utils/api';
 
 const STATUS_MAP = {
   pending_inspection: { label: '待检验', color: 'processing' },

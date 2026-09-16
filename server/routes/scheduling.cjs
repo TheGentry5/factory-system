@@ -10,6 +10,9 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db.cjs');
 const { chat: deepseekChat, chatStream } = require('../lib/deepseek.cjs');
+
+// 排产需一次生成长 JSON（上万 token），放宽超时避免默认 30s 中断
+const AI_SCHEDULING_TIMEOUT_MS = 180000;
 const { createJob, updateJob, getJob } = require('../lib/job-manager.cjs');
 const { groupFilter } = require('../middleware/group-context.cjs');
 
@@ -405,7 +408,7 @@ ${isUrgentInsert ? `\n## ⚠️ 加急插单模式\n工单 **${prioritize}** 是
     const aiResult = await deepseekChat([
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
-    ], { maxTokens: 16384, temperature: 0.3 });
+    ], { maxTokens: 12288, temperature: 0.3, timeout: AI_SCHEDULING_TIMEOUT_MS });
 
     if (!aiResult.success) {
       return res.status(502).json({ success: false, message: aiResult.error });
@@ -641,7 +644,7 @@ ${historyLines||'无'}
     for await (const chunk of chatStream([
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
-    ], { maxTokens: 16384, temperature: 0.3 })) {
+    ], { maxTokens: 12288, temperature: 0.3, timeout: AI_SCHEDULING_TIMEOUT_MS })) {
       if (chunk.error) {
         send('error', { message: chunk.error });
         res.end();
@@ -1056,9 +1059,9 @@ ${isUrgentInsert ? `\n## ⚠️ 加急插单模式\n工单 **${prioritize}** 是
     ];
 
     const [r1, r2, r3] = await Promise.all([
-      deepseekChat(messages, { maxTokens: 16384, temperature: 0.3 }).catch(e => ({ success: false, error: e.message })),
-      deepseekChat(messages, { maxTokens: 16384, temperature: 0.5 }).catch(e => ({ success: false, error: e.message })),
-      deepseekChat(messages, { maxTokens: 16384, temperature: 0.7 }).catch(e => ({ success: false, error: e.message })),
+      deepseekChat(messages, { maxTokens: 12288, temperature: 0.3, timeout: AI_SCHEDULING_TIMEOUT_MS }).catch(e => ({ success: false, error: e.message })),
+      deepseekChat(messages, { maxTokens: 12288, temperature: 0.5, timeout: AI_SCHEDULING_TIMEOUT_MS }).catch(e => ({ success: false, error: e.message })),
+      deepseekChat(messages, { maxTokens: 12288, temperature: 0.7, timeout: AI_SCHEDULING_TIMEOUT_MS }).catch(e => ({ success: false, error: e.message })),
     ]);
 
     updateJob(jobId, { status: 'generating', progress: 25 });
@@ -1105,7 +1108,7 @@ ${isUrgentInsert ? `\n## ⚠️ 加急插单模式\n工单 **${prioritize}** 是
       { role: 'user', content: `请审核并修复以下排产表：\n\n${bestJson}` },
     ];
 
-    const verifyResult = await deepseekChat(verifyMessages, { maxTokens: 16384, temperature: 0.1 });
+    const verifyResult = await deepseekChat(verifyMessages, { maxTokens: 12288, temperature: 0.1, timeout: AI_SCHEDULING_TIMEOUT_MS });
     if (verifyResult.success) {
       const verified = extractJson(verifyResult.content);
       if (verified && verified.scheduleEntries && verified.scheduleEntries.length > 0) {

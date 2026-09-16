@@ -7,12 +7,7 @@ import {
   CheckCircleOutlined, HomeOutlined, EditOutlined,
 } from '@ant-design/icons';
 
-const api = {
-  get: (url, params) => fetch(`/api${url}?` + new URLSearchParams(
-    Object.entries(params || {}).filter(([, v]) => v !== '' && v !== undefined && v !== null)
-  )).then(r => r.json()),
-  post: (url, data) => fetch(`/api${url}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(r => r.json()),
-};
+import api from '../../utils/api';
 
 // ==================== 仓库管理主页 ====================
 export default function Warehouse() {

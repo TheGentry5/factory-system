@@ -97,10 +97,15 @@ function AppContent() {
               {isFeatureOn('employeeManage') && <Route path="employees" element={<EmployeeManage />} />}
               {isFeatureOn('permissionManage') && <Route path="permissions" element={<PermissionManage />} />}
               {isFeatureOn('materialManage') && <Route path="materials" element={<MaterialManage />} />}
+              {isFeatureOn('materialManage') && <Route path="materials/:tab" element={<MaterialManage />} />}
               {isFeatureOn('qualityManage') && <Route path="quality" element={<QualityManage />} />}
+              {isFeatureOn('qualityManage') && <Route path="quality/:tab" element={<QualityManage />} />}
               {isFeatureOn('productionManage') && <Route path="production" element={<ProductionManage />} />}
+              {isFeatureOn('productionManage') && <Route path="production/:tab" element={<ProductionManage />} />}
               {isFeatureOn('inventoryManage') && <Route path="inventory" element={<InventoryManage />} />}
+              {isFeatureOn('inventoryManage') && <Route path="inventory/:tab" element={<InventoryManage />} />}
               {isFeatureOn('reports') && <Route path="reports" element={<Reports />} />}
+              {isFeatureOn('reports') && <Route path="reports/:tab" element={<Reports />} />}
               {isFeatureOn('purchaseOrderManage') && <Route path="purchase-orders" element={<PurchaseOrderManage />} />}
               {isFeatureOn('productionMonitor') && <Route path="production-monitor" element={<ProductionMonitor />} />}
               {isFeatureOn('weeklyReport') && <Route path="weekly-report" element={<WeeklyReport />} />}

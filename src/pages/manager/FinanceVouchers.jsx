@@ -155,7 +155,7 @@ export default function FinanceVouchers() {
 
   return (
     <Card title={<><AccountBookOutlined /> 记账凭证</>}
-      extra={<Space><Input value={periodNo} onChange={e => setPeriodNo(e.target.value)} placeholder="YYYY-MM" style={{ width: 120 }} addonBefore="期间" />
+      extra={<Space><Input value={periodNo} onChange={e => setPeriodNo(e.target.value)} placeholder="YYYY-MM" style={{ width: 180 }} addonBefore="期间" />
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新增凭证</Button></Space>}>
       <Table rowKey="id" loading={loading} size="small" dataSource={data} columns={columns}
         pagination={{ pageSize, showTotal: t => `共 ${t} 条` }} scroll={{ x: 1200 }} />

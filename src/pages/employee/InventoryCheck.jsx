@@ -3,12 +3,7 @@ import { Card, Table, Tag, Button, Space, message, Modal, InputNumber, Input, St
 import { CheckCircleOutlined, EyeOutlined, ReloadOutlined, DashboardOutlined, OrderedListOutlined } from '@ant-design/icons';
 import PermissionGuard from '../../components/PermissionGuard';
 
-const api = {
-  get: (url, params) => fetch(`/api${url}?` + new URLSearchParams(
-    Object.entries(params || {}).filter(([, v]) => v !== '' && v !== undefined && v !== null)
-  )).then(r => r.json()),
-  post: (url, data) => fetch(`/api${url}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(r => r.json()),
-};
+import api from '../../utils/api';
 
 export default function InventoryCheck() {
   const [activeTab, setActiveTab] = useState('tasks');

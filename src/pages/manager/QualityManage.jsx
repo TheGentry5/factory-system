@@ -1,29 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useParams } from 'react-router-dom';
 import {
   Card, Table, Button, Input, Select, Tag, Space, Modal, Form, message,
-  Tabs, Descriptions, Popconfirm, Row, Col, DatePicker, Statistic, Badge,
+  Descriptions, Popconfirm, Row, Col, DatePicker, Statistic, Badge,
   InputNumber, Divider,
 } from 'antd';
 import {
-  PlusOutlined, SearchOutlined, ReloadOutlined, EyeOutlined,
-  CheckCircleOutlined, CloseCircleOutlined, ExclamationCircleOutlined,
-  ExperimentOutlined, EnvironmentOutlined, InboxOutlined,
-  RollbackOutlined, EditOutlined, DeleteOutlined,
+  PlusOutlined, ReloadOutlined, EyeOutlined,
+  ExclamationCircleOutlined, InboxOutlined,
+  EditOutlined, DeleteOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
-const api = {
-  get: (url, params) =>
-    fetch(`/api${url}?` + new URLSearchParams(
-      Object.entries(params || {}).filter(([, v]) => v !== '' && v !== undefined && v !== null)
-    )).then(r => r.json()),
-  post: (url, data) =>
-    fetch(`/api${url}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(r => r.json()),
-  put: (url, data) =>
-    fetch(`/api${url}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(r => r.json()),
-  del: (url) =>
-    fetch(`/api${url}`, { method: 'DELETE' }).then(r => r.json()),
-};
+import api from '../../utils/api';
 
 const STATUS_MAP = {
   pending_inspection: { label: '待检验', color: 'processing' },
@@ -41,32 +30,18 @@ const DISPOSITION_MAP = {
   accept_partial: '部分接收',
 };
 
+// 子模块由路由参数决定，顶部子导航由 BaseLayout 按菜单分组渲染
+const QUALITY_PANELS = {
+  staging: StagingTab,
+  standards: StandardsTab,
+  disposition: DispositionTab,
+  history: HistoryTab,
+};
+
 export default function QualityManage() {
-  const [activeTab, setActiveTab] = useState('staging');
-
-  const tabs = [
-    { key: 'staging', label: '暂存区管理', icon: <EnvironmentOutlined /> },
-    { key: 'standards', label: '质检标准', icon: <ExperimentOutlined /> },
-    { key: 'disposition', label: '不合格处置', icon: <ExclamationCircleOutlined /> },
-    { key: 'history', label: '检验历史', icon: <CheckCircleOutlined /> },
-  ];
-
-  return (
-    <div>
-      <h3 style={{ marginBottom: 16 }}>
-        <ExperimentOutlined style={{ marginRight: 8 }} />质检管理
-      </h3>
-      <Tabs activeKey={activeTab} onChange={setActiveTab} items={tabs.map(t => ({
-        key: t.key,
-        label: <span>{t.icon} {t.label}</span>,
-        children:
-          t.key === 'staging' ? <StagingTab /> :
-          t.key === 'standards' ? <StandardsTab /> :
-          t.key === 'disposition' ? <DispositionTab /> :
-          <HistoryTab />,
-      }))} />
-    </div>
-  );
+  const { tab } = useParams();
+  const Panel = QUALITY_PANELS[tab] || StagingTab;
+  return <Panel />;
 }
 
 // ==================== Tab 1: 暂存区管理 ====================

@@ -22,9 +22,7 @@ import { useAuth } from '../../contexts/AuthContext';
 const { Title, Text } = Typography;
 
 // ==================== 内联 API ====================
-const api = {
-  get: (url) => fetch(`/api${url}`).then(r => r.json()),
-};
+import api from '../../utils/api';
 
 // ==================== 工具函数 ====================
 

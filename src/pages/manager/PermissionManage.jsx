@@ -1,6 +1,7 @@
 import { Card, Typography, Space, Tag, Table, Switch, Button, message, Spin } from 'antd';
 import { useState, useEffect } from 'react';
 import { allPermissions, employeePermissions, users } from '../../data/mockData';
+import api from '../../utils/api';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -24,7 +25,7 @@ export default function PermissionManage() {
     (async () => {
       setLoading(true);
       try {
-        const res = await fetch('/api/employees?pageSize=100&status=1').then(r => r.json());
+        const res = await api.get('/employees', { pageSize: 100, status: 1 });
         if (res.success) {
           setEmployees(res.data.map(emp => ({
             id: getEmpId(emp),

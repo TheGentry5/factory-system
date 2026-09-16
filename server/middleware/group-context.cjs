@@ -52,7 +52,9 @@ function groupContext(req, res, next) {
 function groupFilter(req, alias) {
   if (!req.groupId) return { sql: '', params: [] };
   const col = alias ? `${alias}.group_id` : 'group_id';
-  return { sql: ` AND ${col} = ?`, params: [req.groupId] };
+  // group_id 为 NULL 视为「未分组/共享」，对所有组可见（兼容历史数据与共享主数据）；
+  // 显式归属某组的数据仍严格隔离。
+  return { sql: ` AND (${col} = ? OR ${col} IS NULL)`, params: [req.groupId] };
 }
 
 module.exports = { groupContext, groupFilter };

@@ -8,12 +8,7 @@ import {
 import PermissionGuard from '../../components/PermissionGuard';
 import dayjs from 'dayjs';
 
-const api = {
-  get: (url, params) => fetch(`/api${url}?` + new URLSearchParams(
-    Object.entries(params || {}).filter(([, v]) => v !== '' && v !== undefined && v !== null)
-  )).then(r => r.json()),
-  post: (url, data) => fetch(`/api${url}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }).then(r => r.json()),
-};
+import api from '../../utils/api';
 
 // ==================== 生产报工主页 ====================
 export default function ProductionReport() {
@@ -41,12 +36,16 @@ function ReportForm() {
   const [form] = Form.useForm();
   const [submitting, setSubmitting] = useState(false);
   const [orders, setOrders] = useState([]);
+  const [machines, setMachines] = useState([]);
   const [employeeName, setEmployeeName] = useState(localStorage.getItem('employee_name') || '');
 
   useEffect(() => {
     // 加载进行中的工单
     api.get('/production/orders', { status: 'in_progress', pageSize: 100 })
       .then(r => r.success && setOrders(r.data));
+    // 加载启用中的机台（报工机台下拉）
+    api.get('/production/machines')
+      .then(r => r.success && setMachines(r.data));
   }, []);
 
   const handleSubmit = async () => {
@@ -89,7 +88,11 @@ function ReportForm() {
                 options={orders.map(o => ({ label: `${o.order_no} ${o.product_name} (剩余${Math.max(0, (o.quantity||0) - (o.completed_quantity||0))}${o.unit})`, value: o.id }))} />
             </Form.Item>
             <Form.Item name="machine_name" label="机台/设备">
-              <Input placeholder="如：海德堡4号机" />
+              <Select allowClear showSearch placeholder="选择机台/设备" optionFilterProp="label"
+                options={machines.map(m => ({
+                  label: m.owner_group_id ? `${m.machine_name} · ${m.owner_group_id}` : m.machine_name,
+                  value: m.machine_name,
+                }))} />
             </Form.Item>
             <Form.Item name="shift" label="班次">
               <Select options={[
@@ -155,7 +158,7 @@ function MyReports() {
       {data.length > 0 ? (
         <Table rowKey="id" size="small" dataSource={data} loading={loading} pagination={{ pageSize: 20 }}
           columns={[
-            { title: '日期', dataIndex: 'report_date', width: 100 },
+            { title: '日期', dataIndex: 'report_date', width: 100, render: v => v ? dayjs(v).format('YYYY-MM-DD') : '-' },
             { title: '工单', dataIndex: 'order_no', width: 130 },
             { title: '产品', dataIndex: 'product_name', width: 100 },
             { title: '良品', dataIndex: 'output_quantity', width: 70, align: 'right', render: v => <span style={{ color: '#52c41a' }}>{v}</span> },

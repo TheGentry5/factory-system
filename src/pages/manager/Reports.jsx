@@ -1,32 +1,35 @@
 import { useState, useEffect } from 'react';
-import { Card, Table, Tag, Tabs, Row, Col, Statistic, DatePicker, Space, Button, Empty } from 'antd';
+import { useParams } from 'react-router-dom';
+import { Card, Table, Tag, Row, Col, Statistic, DatePicker, Space, Button, Empty } from 'antd';
 import {
-  BarChartOutlined, InboxOutlined, CheckCircleOutlined,
   ArrowUpOutlined, ArrowDownOutlined, ReloadOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
+import api from '../../utils/api';
 
-const api = {
-  get: (url, params) => fetch(`/api${url}?` + new URLSearchParams(
-    Object.entries(params || {}).filter(([, v]) => v !== '' && v !== undefined && v !== null)
-  )).then(r => r.json()),
+// 金额格式化
+const money = (v) =>
+  v === null || v === undefined || Number.isNaN(Number(v))
+    ? '-'
+    : `¥${Number(v).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+// 月份中文名（与 FinanceReports 保持一致）
+const MONTHS_CN = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
+const MONTH_PICKER_LOCALE = { lang: { shortMonths: MONTHS_CN } };
+
+// ==================== 数据报表主页 ====================
+// 子模块由路由参数决定，顶部子导航由 BaseLayout 按菜单分组渲染
+const REPORT_PANELS = {
+  production: ProductionReport,
+  inventory: InventoryReport,
+  quality: QualityReport,
+  finance: FinanceReport,
 };
 
 export default function Reports() {
-  const [activeTab, setActiveTab] = useState('production');
-
-  return (
-    <div>
-      <Tabs activeKey={activeTab} onChange={setActiveTab} items={[
-        { key: 'production', label: '📊 生产报表', icon: <BarChartOutlined /> },
-        { key: 'inventory', label: '📦 库存报表', icon: <InboxOutlined /> },
-        { key: 'quality', label: '✅ 质检报表', icon: <CheckCircleOutlined /> },
-      ]} />
-      {activeTab === 'production' && <ProductionReport />}
-      {activeTab === 'inventory' && <InventoryReport />}
-      {activeTab === 'quality' && <QualityReport />}
-    </div>
-  );
+  const { tab } = useParams();
+  const Panel = REPORT_PANELS[tab] || ProductionReport;
+  return <Panel />;
 }
 
 function ProductionReport() {
@@ -192,6 +195,135 @@ function QualityReport() {
           />
         </Card>
       ) : <Empty description="暂无检验标准" />}
+    </div>
+  );
+}
+
+// ==================== 4. 财务统计 ====================
+// 汇总财务模块相关数据：利润表核心指标 + 资产负债 + 应收/应付账龄 + 费用
+function FinanceReport() {
+  const [period, setPeriod] = useState(dayjs().format('YYYY-MM'));
+  const [profit, setProfit] = useState(null);
+  const [balance, setBalance] = useState(null);
+  const [apAging, setApAging] = useState(null);
+  const [arAging, setArAging] = useState(null);
+  const [expenses, setExpenses] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetch = async (p) => {
+    const periodNo = p || period;
+    setLoading(true);
+    try {
+      const [profitRes, balanceRes, apRes, arRes, expRes] = await Promise.all([
+        api.get('/finance/reports/profit', { period_no: periodNo }),
+        api.get('/finance/reports/balance-sheet', { period_no: periodNo }),
+        api.get('/finance/reports/ap-aging'),
+        api.get('/finance/reports/ar-aging'),
+        api.get('/finance/reports/expenses', { period_no: periodNo }),
+      ]);
+      if (profitRes.success) setProfit(profitRes.data);
+      if (balanceRes.success) setBalance(balanceRes.data);
+      if (apRes.success) setApAging(apRes.data);
+      if (arRes.success) setArAging(arRes.data);
+      if (expRes.success) setExpenses(expRes.data);
+    } finally { setLoading(false); }
+  };
+
+  useEffect(() => { fetch(); }, []);
+
+  const agingColumns = (nameTitle) => [
+    { title: nameTitle, dataIndex: nameTitle === '供应商' ? 'supplier_name' : 'customer_name' },
+    { title: '未到期', dataIndex: 'b0', align: 'right', render: money },
+    { title: '逾期≤30天', dataIndex: 'b30', align: 'right', render: money },
+    { title: '31-60天', dataIndex: 'b60', align: 'right', render: money },
+    { title: '61-90天', dataIndex: 'b90', align: 'right', render: money },
+    { title: '>90天', dataIndex: 'bm', align: 'right', render: v => <Tag color="red">{money(v)}</Tag> },
+    { title: '剩余合计', dataIndex: 'remaining', align: 'right', render: v => <strong>{money(v)}</strong> },
+  ];
+
+  const agingSummary = (totals) => () => (
+    <Table.Summary.Row>
+      <Table.Summary.Cell index={0}><strong>合计</strong></Table.Summary.Cell>
+      <Table.Summary.Cell index={1} align="right">{money(totals?.b0)}</Table.Summary.Cell>
+      <Table.Summary.Cell index={2} align="right">{money(totals?.b30)}</Table.Summary.Cell>
+      <Table.Summary.Cell index={3} align="right">{money(totals?.b60)}</Table.Summary.Cell>
+      <Table.Summary.Cell index={4} align="right">{money(totals?.b90)}</Table.Summary.Cell>
+      <Table.Summary.Cell index={5} align="right">{money(totals?.bm)}</Table.Summary.Cell>
+      <Table.Summary.Cell index={6} align="right"><strong>{money(totals?.remaining)}</strong></Table.Summary.Cell>
+    </Table.Summary.Row>
+  );
+
+  const netProfit = profit?.profit?.cur || 0;
+
+  return (
+    <div>
+      <Space style={{ marginBottom: 16 }}>
+        <span>会计期间</span>
+        <DatePicker picker="month" allowClear={false} value={dayjs(period)} locale={MONTH_PICKER_LOCALE}
+          onChange={(d) => { if (d) { const p = d.format('YYYY-MM'); setPeriod(p); fetch(p); } }} />
+        <Button icon={<ReloadOutlined />} onClick={() => fetch()}>刷新</Button>
+      </Space>
+
+      <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Col span={6}><Card loading={loading}><Statistic title="营业收入（本期）" value={profit?.revenue?.cur || 0} precision={2} prefix="¥" /></Card></Col>
+        <Col span={6}><Card loading={loading}><Statistic title="成本费用（本期）" value={profit?.cost?.cur || 0} precision={2} prefix="¥" /></Card></Col>
+        <Col span={6}><Card loading={loading}><Statistic title="本期净利润" value={netProfit} precision={2} prefix="¥" valueStyle={{ color: netProfit >= 0 ? '#52c41a' : '#ff4d4f' }} /></Card></Col>
+        <Col span={6}><Card loading={loading}><Statistic title="本年累计净利润" value={profit?.profit?.ytd || 0} precision={2} prefix="¥" /></Card></Col>
+      </Row>
+
+      <Row gutter={16} style={{ marginBottom: 24 }}>
+        <Col span={6}><Card loading={loading}><Statistic title="资产总计" value={balance?.asset_total || 0} precision={2} prefix="¥" /></Card></Col>
+        <Col span={6}><Card loading={loading}><Statistic title="负债总计" value={balance?.liability_total || 0} precision={2} prefix="¥" /></Card></Col>
+        <Col span={6}><Card loading={loading}><Statistic title="所有者权益" value={balance?.equity_total || 0} precision={2} prefix="¥" /></Card></Col>
+        <Col span={6}>
+          <Card loading={loading}>
+            <Row gutter={0}>
+              <Col span={12}><Statistic title="应付余额" value={apAging?.totals?.remaining || 0} precision={2} prefix="¥" valueStyle={{ fontSize: 20 }} /></Col>
+              <Col span={12}><Statistic title="应收余额" value={arAging?.totals?.remaining || 0} precision={2} prefix="¥" valueStyle={{ fontSize: 20, color: '#52c41a' }} /></Col>
+            </Row>
+          </Card>
+        </Col>
+      </Row>
+
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={12}>
+          <Card title="应付账龄" size="small">
+            {apAging?.rows?.length > 0 ? (
+              <Table rowKey="supplier_name" size="small" dataSource={apAging.rows} pagination={false}
+                scroll={{ x: 700 }} columns={agingColumns('供应商')} summary={agingSummary(apAging.totals)} />
+            ) : <Empty description="暂无应付余额 ✅" />}
+          </Card>
+        </Col>
+        <Col span={12}>
+          <Card title="应收账龄" size="small">
+            {arAging?.rows?.length > 0 ? (
+              <Table rowKey="customer_name" size="small" dataSource={arAging.rows} pagination={false}
+                scroll={{ x: 700 }} columns={agingColumns('客户')} summary={agingSummary(arAging.totals)} />
+            ) : <Empty description="暂无应收余额 ✅" />}
+          </Card>
+        </Col>
+      </Row>
+
+      <Card title="费用汇总（部门 × 类型）" size="small">
+        {expenses?.rows?.length > 0 ? (
+          <Table rowKey={(r, i) => i} size="small" dataSource={expenses.rows} pagination={false}
+            columns={[
+              { title: '部门', dataIndex: 'department' },
+              { title: '费用类型', dataIndex: 'expense_type', width: 100, render: v => <Tag>{v}</Tag> },
+              { title: '单据数', dataIndex: 'doc_count', width: 90, align: 'right' },
+              { title: '报销金额', dataIndex: 'amount', align: 'right', render: money },
+              { title: '含税金额', dataIndex: 'total_amount', align: 'right', render: money },
+            ]}
+            summary={() => (
+              <Table.Summary.Row>
+                <Table.Summary.Cell index={0} colSpan={2}><strong>合计（{expenses?.totals?.doc_count || 0} 张）</strong></Table.Summary.Cell>
+                <Table.Summary.Cell index={1} />
+                <Table.Summary.Cell index={2} align="right"><strong>{money(expenses?.totals?.amount)}</strong></Table.Summary.Cell>
+                <Table.Summary.Cell index={3} align="right"><strong>{money(expenses?.totals?.total_amount)}</strong></Table.Summary.Cell>
+              </Table.Summary.Row>
+            )} />
+        ) : <Empty description="暂无费用数据" />}
+      </Card>
     </div>
   );
 }
