@@ -135,6 +135,36 @@ const { groupFilter } = require('../middleware/group-context.cjs');
 
 const round2 = v => Math.round((v || 0) * 100) / 100;
 
+/**
+ * 按公式重算排产机时费，覆盖 AI 估算值。
+ *   单条机时费 = durationHours × 该机器小时单价（production_machines.hourly_cost）
+ *   机器汇总   = Σ(durationHours) × 单价 的逐条累加
+ * 单价缺失（机器名未匹配或已停用）按 0 计，不抛异常。
+ */
+function recalcMachineCosts(parsed, machines) {
+  if (!parsed || !Array.isArray(parsed.scheduleEntries)) return parsed;
+  const rateMap = new Map((machines || []).map(m => [m.machine_name, Number(m.hourly_cost) || 0]));
+
+  parsed.scheduleEntries.forEach(e => {
+    const rate = rateMap.has(e.machineName) ? rateMap.get(e.machineName) : 0;
+    e.durationHours = round2(e.durationHours);
+    e.setupHours = round2(e.setupHours);
+    e.hourlyCost = round2(rate);
+    e.subtotalCost = round2((Number(e.durationHours) || 0) * rate);
+  });
+
+  const agg = new Map();
+  parsed.scheduleEntries.forEach(e => {
+    const key = e.machineName || '未指定设备';
+    if (!agg.has(key)) agg.set(key, { machineName: key, ownerGroup: e.machineOwner || '共享', totalHours: 0, totalCost: 0 });
+    const a = agg.get(key);
+    a.totalHours = round2(a.totalHours + (Number(e.durationHours) || 0));
+    a.totalCost = round2(a.totalCost + e.subtotalCost);
+  });
+  parsed.machineTimeSummary = [...agg.values()];
+  return parsed;
+}
+
 function priorityWeight(p) {
   const map = { urgent: 4, high: 3, normal: 2, low: 1 };
   return map[p] || 2;
@@ -332,6 +362,10 @@ urgent > high > normal > low，同优先级按交期早>晚。
 工序的设备类型决定了可用哪些机器。如果设备归属另一个组，照常排上，
 machineOwner 写实际归属组，月底按此分摊机时费。
 
+### 9. 机时费（系统给定，勿自行估算）
+小时单价由「设备资源」表给定，机时费 = durationHours × 小时单价。
+AI 只需输出正确的 machineName 与 durationHours；hourlyCost / subtotalCost 会由系统按单价表重算覆盖，无需精确计算。
+
 ## 输出格式 — 只返回纯 JSON（不要任何 markdown 标记）
 {
   "scheduleEntries": [
@@ -426,16 +460,8 @@ ${isUrgentInsert ? `\n## ⚠️ 加急插单模式\n工单 **${prioritize}** 是
           e.priority = orderPriorityMap[e.orderNo];
         }
       });
-      // 所有金额字段强制2位小数
-      (parsed.scheduleEntries || []).forEach(e => {
-        e.hourlyCost = round2(e.hourlyCost);
-        e.subtotalCost = round2(e.subtotalCost);
-        e.durationHours = round2(e.durationHours);
-      });
-      (parsed.machineTimeSummary || []).forEach(m => {
-        m.totalHours = round2(m.totalHours);
-        m.totalCost = round2(m.totalCost);
-      });
+      // 所有金额按「机时费 = 工时 × 单价」后端重算，覆盖 AI 估算值
+      recalcMachineCosts(parsed, machines);
     }
     if (!parsed || !parsed.scheduleEntries) {
       console.error('[ai-scheduling] Parse failed. First 300:', rawContent.substring(0, 300));
@@ -605,6 +631,7 @@ router.get('/schedule-suggestion-stream', async (req, res) => {
 4. 每台机器每天排产≤可用工时×80%，留20%给加急
 5. 必须均匀分布到所有可用日期，禁止挤在第一天
 6. 换产品时加30-60min换线调试
+7. 机时费=工时×单价，单价由系统按设备表重算，AI 无需估算金额
 ${isUrgentInsert?`\n## ⚠️ 加急：${prioritize} 必须排到本周最优位置\n`:''
 }## 输出 — 纯 JSON
 {"scheduleEntries":[{"orderNo":"","productName":"","stepOrder":1,"stepName":"","machineName":"","machineOwner":"group_a","dayLabel":"周三","date":"2026-07-22","shift":"早班","startTime":"08:00","endTime":"08:30","durationHours":0.5,"setupHours":0.5,"productionQty":1000,"hourlyCost":150,"subtotalCost":75}],"machineTimeSummary":[{"ownerGroup":"","machineName":"","totalHours":0,"totalCost":0}],"riskWarnings":[{"orderNo":"","severity":"high","message":""}],"reasoning":"","summary":""}`;
@@ -678,6 +705,13 @@ ${historyLines||'无'}
       return;
     }
 
+    // 注入优先级 + 按「机时费 = 工时 × 单价」重算（落库前完成，覆盖 AI 估算值）
+    const orderPM = {}; orders.forEach(o => { orderPM[o.order_no] = o.priority; });
+    (parsed.scheduleEntries || []).forEach(e => {
+      if (!e.priority && orderPM[e.orderNo]) e.priority = orderPM[e.orderNo];
+    });
+    recalcMachineCosts(parsed, machines);
+
     // 保存到 DB
     let scheduleId = null;
     try {
@@ -696,14 +730,6 @@ ${historyLines||'无'}
         );
       }
     } catch(dbErr) { console.error('[ai-scheduling] 流式保存失败:',dbErr.message); }
-
-      // 注入优先级 + 强制2位小数
-      const orderPM={}; orders.forEach(o=>{orderPM[o.order_no]=o.priority});
-      (parsed.scheduleEntries||[]).forEach(e=>{
-        if(!e.priority&&orderPM[e.orderNo]) e.priority=orderPM[e.orderNo];
-        e.hourlyCost=round2(e.hourlyCost); e.subtotalCost=round2(e.subtotalCost); e.durationHours=round2(e.durationHours);
-      });
-      (parsed.machineTimeSummary||[]).forEach(m=>{m.totalHours=round2(m.totalHours); m.totalCost=round2(m.totalCost);});
 
 
     send('done', {
@@ -982,6 +1008,10 @@ urgent > high > normal > low，同优先级按交期早>晚。
 工序的设备类型决定了可用哪些机器。如果设备归属另一个组，照常排上，
 machineOwner 写实际归属组，月底按此分摊机时费。
 
+### 9. 机时费（系统给定，勿自行估算）
+小时单价由「设备资源」表给定，机时费 = durationHours × 小时单价。
+AI 只需输出正确的 machineName 与 durationHours；hourlyCost / subtotalCost 会由系统按单价表重算覆盖，无需精确计算。
+
 ## 输出格式 — 只返回纯 JSON（不要任何 markdown 标记）
 {
   "scheduleEntries": [
@@ -1122,21 +1152,15 @@ ${isUrgentInsert ? `\n## ⚠️ 加急插单模式\n工单 **${prioritize}** 是
     // ================================================================
     // Phase 3: 后处理 + 保存
     // ================================================================
-    // 注入工单优先级
+    // 注入工单优先级 + 按「机时费 = 工时 × 单价」重算（覆盖 AI 估算值）
     const orderPriorityMap = {};
     orders.forEach(o => { orderPriorityMap[o.order_no] = o.priority; });
     (bestResult.scheduleEntries || []).forEach(e => {
       if (!e.priority && orderPriorityMap[e.orderNo]) {
         e.priority = orderPriorityMap[e.orderNo];
       }
-      e.hourlyCost = round2(e.hourlyCost);
-      e.subtotalCost = round2(e.subtotalCost);
-      e.durationHours = round2(e.durationHours);
     });
-    (bestResult.machineTimeSummary || []).forEach(m => {
-      m.totalHours = round2(m.totalHours);
-      m.totalCost = round2(m.totalCost);
-    });
+    recalcMachineCosts(bestResult, machines);
 
     // 保存
     let scheduleId = null;

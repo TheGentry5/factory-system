@@ -23,6 +23,7 @@ const demoRouter = require('./routes/demo.cjs');
 const reportsRouter = require('./routes/reports.cjs');
 const assistantRouter = require('./routes/assistant.cjs');
 const schedulingRouter = require('./routes/scheduling.cjs');
+const machinesRouter = require('./routes/machines.cjs');
 
 // 财务模块（挂载点均为 /api/finance，各文件以子路径注册）
 const financeVouchersRouter = require('./routes/finance/vouchers.cjs');
@@ -58,6 +59,7 @@ app.use('/api/demo', demoRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/assistant', assistantRouter);
 app.use('/api/scheduling', schedulingRouter);
+app.use('/api/machines', machinesRouter);
 
 // 财务模块
 app.use('/api/finance', financeVouchersRouter);

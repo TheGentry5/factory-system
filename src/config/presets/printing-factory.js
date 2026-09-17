@@ -46,6 +46,7 @@ export default {
     weeklyReport: true,       // AI周报
     aiAssistant: true,        // AI知识助手
     aiScheduling: true,       // AI智能排产
+    machineCostManage: true,  // 机时费管理（设备单价维护 + 机时费统计）
 
     // 管理员特有
     userManage: true,
@@ -105,6 +106,7 @@ export default {
       { key: '/manager/weekly-report', icon: 'BarChartOutlined', label: 'AI周报' },
       { key: '/manager/ai-assistant', icon: 'RobotOutlined', label: 'AI助手' },
       { key: '/manager/ai-scheduling', icon: 'ThunderboltOutlined', label: 'AI排产' },
+      { key: '/manager/machine-cost', icon: 'MoneyCollectOutlined', label: '机时费管理', feature: 'machineCostManage' },
       {
         key: 'inventory',
         icon: 'GoldOutlined',

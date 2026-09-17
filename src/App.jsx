@@ -25,6 +25,7 @@ import ProductionMonitor from './pages/manager/ProductionMonitor';
 import WeeklyReport from './pages/manager/WeeklyReport';
 import AIAssistant from './pages/manager/AIAssistant';
 import AIScheduling from './pages/manager/AIScheduling';
+import MachineCostManage from './pages/manager/MachineCostManage';
 
 // 财务模块（管理者页面）
 import FinanceAP from './pages/manager/FinanceAP';
@@ -111,6 +112,7 @@ function AppContent() {
               {isFeatureOn('weeklyReport') && <Route path="weekly-report" element={<WeeklyReport />} />}
               {isFeatureOn('aiAssistant') && <Route path="ai-assistant" element={<AIAssistant />} />}
               {isFeatureOn('aiScheduling') && <Route path="ai-scheduling" element={<AIScheduling />} />}
+              {isFeatureOn('machineCostManage') && <Route path="machine-cost" element={<MachineCostManage />} />}
               {/* 财务模块 */}
               {isFeatureOn('finance') && <Route path="finance-ap" element={<FinanceAP />} />}
               {isFeatureOn('finance') && <Route path="finance-ar" element={<FinanceAR />} />}
